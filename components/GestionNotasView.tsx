@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Student, EvaluationsState, Service, StudentGroupAssignments, GroupEvaluation, IndividualEvaluation, EvaluationItemScore } from '../types';
+import { Student, EvaluationsState, Service, StudentGroupAssignments, GroupEvaluation, IndividualEvaluation, EvaluationItemScore, ServiceMenu } from '../types';
 import { GROUP_EVALUATION_ITEMS, INDIVIDUAL_EVALUATION_ITEMS } from '../constants';
 import { BackIcon, CheckIcon, DownloadIcon } from './icons';
 import { exportToExcel, downloadPdfWithTables } from './printUtils';
@@ -35,12 +35,15 @@ const EvaluationForm: React.FC<{
     evaluations: EvaluationsState;
     setEvaluations: React.Dispatch<React.SetStateAction<EvaluationsState>>;
     onBack: () => void;
-}> = ({ service, students, studentGroupAssignments, evaluations, setEvaluations, onBack }) => {
+    serviceMenus: { [serviceId: string]: ServiceMenu };
+}> = ({ service, students, studentGroupAssignments, evaluations, setEvaluations, onBack, serviceMenus }) => {
 
     const assignedGroups = useMemo(() => {
         return [...new Set([...service.groupAssignments.comedor, ...service.groupAssignments.takeaway])]
             .sort((a, b) => a.localeCompare(b));
     }, [service]);
+    
+    const menu = serviceMenus[service.id];
 
     const handleGroupScoreChange = (groupId: string, itemId: string, score: number) => {
         setEvaluations(prev => {
@@ -149,6 +152,21 @@ const EvaluationForm: React.FC<{
                         .sort((a, b) => `${a.apellido1} ${a.apellido2} ${a.nombre}`.localeCompare(`${b.apellido1} ${b.apellido2} ${b.nombre}`));
                     const groupEval = evaluations.group.find(e => e.serviceId === service.id && e.groupId === groupId);
 
+                    const assignedDishes = (() => {
+                        if (!menu) return [];
+                        const dishes = new Set<string>();
+                        (menu.comedor || []).forEach(dish => {
+                            if (dish.assignedGroup === groupId) dishes.add(dish.name);
+                        });
+                        (menu.takeaway || []).forEach(dish => {
+                            if (dish.assignedGroup === groupId) dishes.add(dish.name);
+                        });
+                        (menu.familia || []).forEach(dish => {
+                            if (dish.assignedGroup === groupId) dishes.add(dish.name);
+                        });
+                        return Array.from(dishes);
+                    })();
+
                     return (
                         <details key={groupId} open className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                             <summary className="font-bold text-xl text-gray-700 cursor-pointer">
@@ -158,6 +176,18 @@ const EvaluationForm: React.FC<{
                                 {/* Group Evaluation */}
                                 <div className="mb-6">
                                     <h4 className="font-semibold text-lg text-blue-800 mb-3">Evaluación Grupal</h4>
+                                    
+                                    {assignedDishes.length > 0 && (
+                                        <div className="mb-4 bg-blue-50 p-3 rounded-md border border-blue-200">
+                                            <h5 className="font-semibold text-sm text-blue-900">Platos Asignados en este Servicio</h5>
+                                            <ul className="list-disc list-inside text-sm text-gray-700 mt-1 space-y-1">
+                                                {assignedDishes.map((dishName, index) => (
+                                                    <li key={index}>{dishName}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
                                     <div className="space-y-3">
                                         {GROUP_EVALUATION_ITEMS.map(item => {
                                             const currentScore = groupEval?.scores.find(s => s.itemId === item.id)?.score ?? '';
@@ -341,6 +371,7 @@ const GestionNotasView: React.FC<GestionNotasViewProps> = ({ students, evaluatio
 
     const services = useMemo(() => safeJsonParse<Service[]>('practicaServices', []).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()), []);
     const studentGroupAssignments = useMemo(() => safeJsonParse<StudentGroupAssignments>('studentGroupAssignments', {}), []);
+    const serviceMenus = useMemo(() => safeJsonParse<{ [serviceId: string]: ServiceMenu }>('practicaServiceMenus', {}), []);
 
     const studentsByGroup = useMemo(() => {
         const grouped: { [key: string]: Student[] } = {};
@@ -516,6 +547,7 @@ const GestionNotasView: React.FC<GestionNotasViewProps> = ({ students, evaluatio
                     evaluations={evaluations}
                     setEvaluations={setEvaluations}
                     onBack={handleBackToSummary}
+                    serviceMenus={serviceMenus}
                 />
             )}
         </div>

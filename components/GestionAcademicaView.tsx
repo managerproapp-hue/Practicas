@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Student, EvaluationsState, StudentPracticalExam, TheoreticalExamGrades, Service, StudentGroupAssignments, EvaluationItemScore, CourseGrades, CourseModuleGrades } from '../types';
 import { ACADEMIC_EVALUATION_STRUCTURE, COURSE_MODULES } from '../constants';
 import { CheckIcon, DownloadIcon } from './icons';
@@ -54,30 +54,16 @@ const calculateFinalGrade = (grades: CourseModuleGrades | undefined, trimesters:
 };
 
 // --- TAB COMPONENT: MODULO PRINCIPAL ---
-const ModuloPrincipalTab: React.FC<Omit<GestionAcademicaViewProps, 'courseGrades' | 'setCourseGrades'>> = ({
-    students, evaluations, practicalExams, academicGrades, setAcademicGrades
+interface ModuloPrincipalTabProps extends Omit<GestionAcademicaViewProps, 'courseGrades' | 'setCourseGrades' | 'setAcademicGrades'> {
+    academicGrades: { [nre: string]: TheoreticalExamGrades };
+    handleGradeChange: (studentNre: string, instrumentKey: keyof TheoreticalExamGrades, value: string) => void;
+}
+
+const ModuloPrincipalTab: React.FC<ModuloPrincipalTabProps> = ({
+    students, evaluations, practicalExams, academicGrades, handleGradeChange
 }) => {
-    const [saveNotification, setSaveNotification] = useState(false);
     const services = useMemo(() => safeJsonParse<Service[]>('practicaServices', []), []);
     const studentGroupAssignments = useMemo(() => safeJsonParse<StudentGroupAssignments>('studentGroupAssignments', {}), []);
-
-    const handleGradeChange = (studentNre: string, instrumentKey: keyof TheoreticalExamGrades, value: string) => {
-        const newGrade = value === '' ? undefined : parseFloat(value);
-        if (newGrade !== undefined && (isNaN(newGrade) || newGrade < 0 || newGrade > 10)) return;
-
-        setAcademicGrades(prev => {
-            const studentGrades = { ...(prev[studentNre] || {}) };
-            if (newGrade === undefined) {
-                delete studentGrades[instrumentKey];
-            } else {
-                studentGrades[instrumentKey] = newGrade;
-            }
-            return { ...prev, [studentNre]: studentGrades };
-        });
-        
-        setSaveNotification(true);
-        setTimeout(() => setSaveNotification(false), 2000);
-    };
 
     const calculatedGradesByStudent = useMemo(() => {
         const result: { [nre: string]: { [key: string]: number | null } } = {};
@@ -219,12 +205,6 @@ const ModuloPrincipalTab: React.FC<Omit<GestionAcademicaViewProps, 'courseGrades
                 </button>
             </div>
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                 {saveNotification && (
-                    <div className="fixed top-20 right-8 bg-green-100 text-green-700 font-semibold py-2 px-4 rounded-lg flex items-center transition-opacity duration-300 animate-pulse z-50">
-                        <CheckIcon className="h-5 w-5 mr-2" />
-                        Guardado
-                    </div>
-                )}
                 <div className="overflow-x-auto max-h-[70vh]">
                     <table className="min-w-full divide-y divide-gray-200 border-separate" style={{borderSpacing: 0}}>
                         <thead className="bg-gray-50 sticky top-0 z-20">
@@ -357,10 +337,13 @@ const ModuloPrincipalTab: React.FC<Omit<GestionAcademicaViewProps, 'courseGrades
 };
 
 // --- TAB COMPONENT: OTROS MODULOS ---
-const OtrosModulosTab: React.FC<Pick<GestionAcademicaViewProps, 'students' | 'courseGrades' | 'setCourseGrades'>> = ({
-    students, courseGrades, setCourseGrades
+interface OtrosModulosTabProps extends Pick<GestionAcademicaViewProps, 'students'> {
+    courseGrades: { [nre: string]: CourseGrades };
+    handleGradeChange: (studentNre: string, moduleKey: string, period: keyof CourseModuleGrades, value: string) => void;
+}
+const OtrosModulosTab: React.FC<OtrosModulosTabProps> = ({
+    students, courseGrades, handleGradeChange
 }) => {
-    const [saveNotification, setSaveNotification] = useState(false);
     
     const studentsByGroup = useMemo(() => {
         const grouped: { [key: string]: Student[] } = {};
@@ -376,33 +359,6 @@ const OtrosModulosTab: React.FC<Pick<GestionAcademicaViewProps, 'students' | 'co
         }
         return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
     }, [students]);
-
-    const handleGradeChange = (studentNre: string, moduleKey: string, period: keyof CourseModuleGrades, value: string) => {
-        const newGrade = value === '' ? undefined : parseFloat(value);
-        if (newGrade !== undefined && (isNaN(newGrade) || newGrade < 0 || newGrade > 10)) return;
-        
-        setCourseGrades(prev => {
-            const studentGrades = { ...(prev[studentNre] || {}) };
-            const moduleGrades = { ...(studentGrades[moduleKey] || {}) };
-            
-            if (newGrade === undefined) {
-                delete moduleGrades[period];
-            } else {
-                moduleGrades[period] = newGrade;
-            }
-
-            const newStudentGrades = { ...studentGrades, [moduleKey]: moduleGrades };
-            if (Object.keys(moduleGrades).length === 0) delete newStudentGrades[moduleKey];
-
-            const newCourseGrades = { ...prev, [studentNre]: newStudentGrades };
-            if (Object.keys(newStudentGrades).length === 0) delete newCourseGrades[studentNre];
-
-            return newCourseGrades;
-        });
-
-        setSaveNotification(true);
-        setTimeout(() => setSaveNotification(false), 2000);
-    };
 
     const handleExportPdfOtros = () => {
         const headRow1: any[] = [{ content: 'Alumno', rowSpan: 2 }];
@@ -459,12 +415,6 @@ const OtrosModulosTab: React.FC<Pick<GestionAcademicaViewProps, 'students' | 'co
                 </button>
             </div>
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                {saveNotification && (
-                    <div className="fixed top-20 right-8 bg-green-100 text-green-700 font-semibold py-2 px-4 rounded-lg flex items-center transition-opacity duration-300 animate-pulse z-50">
-                        <CheckIcon className="h-5 w-5 mr-2" />
-                        Guardado
-                    </div>
-                )}
                 <div className="overflow-x-auto max-h-[70vh]">
                     <table className="min-w-full divide-y divide-gray-200 border-separate" style={{borderSpacing: 0}}>
                         <thead className="bg-gray-100 sticky top-0 z-20">
@@ -544,14 +494,96 @@ const OtrosModulosTab: React.FC<Pick<GestionAcademicaViewProps, 'students' | 'co
 // --- MAIN VIEW COMPONENT ---
 const GestionAcademicaView: React.FC<GestionAcademicaViewProps> = (props) => {
     const [activeTab, setActiveTab] = useState<'principal' | 'otros'>('principal');
+
+    const [localAcademicGrades, setLocalAcademicGrades] = useState(props.academicGrades);
+    const [localCourseGrades, setLocalCourseGrades] = useState(props.courseGrades);
+
+    const [isDirty, setIsDirty] = useState(false);
+    type SaveStatus = 'idle' | 'saving' | 'saved';
+    const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+
+    useEffect(() => { setLocalAcademicGrades(props.academicGrades); }, [props.academicGrades]);
+    useEffect(() => { setLocalCourseGrades(props.courseGrades); }, [props.courseGrades]);
+
+    const handlePrincipalGradeChange = (studentNre: string, instrumentKey: keyof TheoreticalExamGrades, value: string) => {
+        const newGrade = value === '' ? undefined : parseFloat(value);
+        if (newGrade !== undefined && (isNaN(newGrade) || newGrade < 0 || newGrade > 10)) return;
+
+        setLocalAcademicGrades(prev => {
+            const studentGrades = { ...(prev[studentNre] || {}) };
+            if (newGrade === undefined) {
+                delete studentGrades[instrumentKey];
+            } else {
+                studentGrades[instrumentKey] = newGrade;
+            }
+            return { ...prev, [studentNre]: studentGrades };
+        });
+        setIsDirty(true);
+        setSaveStatus('idle');
+    };
+
+    const handleOtrosGradeChange = (studentNre: string, moduleKey: string, period: keyof CourseModuleGrades, value: string) => {
+        const newGrade = value === '' ? undefined : parseFloat(value);
+        if (newGrade !== undefined && (isNaN(newGrade) || newGrade < 0 || newGrade > 10)) return;
+
+        setLocalCourseGrades(prev => {
+            const studentGrades = { ...(prev[studentNre] || {}) };
+            const moduleGrades = { ...(studentGrades[moduleKey] || {}) };
+            
+            if (newGrade === undefined) {
+                delete moduleGrades[period];
+            } else {
+                moduleGrades[period] = newGrade;
+            }
+
+            const newStudentGrades = { ...studentGrades, [moduleKey]: moduleGrades };
+            if (Object.keys(moduleGrades).length === 0) delete newStudentGrades[moduleKey];
+
+            const newCourseGrades = { ...prev, [studentNre]: newStudentGrades };
+            if (Object.keys(newStudentGrades).length === 0) delete newCourseGrades[studentNre];
+
+            return newCourseGrades;
+        });
+        setIsDirty(true);
+        setSaveStatus('idle');
+    };
+
+    const handleSaveChanges = () => {
+        setSaveStatus('saving');
+        props.setAcademicGrades(localAcademicGrades);
+        props.setCourseGrades(localCourseGrades);
+        setIsDirty(false);
+
+        setTimeout(() => {
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 2500);
+        }, 500);
+    };
     
     return (
         <div className="p-8">
-            <header className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">Gestión Académica</h1>
-                <p className="mt-2 text-gray-600">
-                    Vista centralizada para gestionar las notas del curso.
-                </p>
+            <header className="mb-6 flex justify-between items-start">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800">Gestión Académica</h1>
+                    <p className="mt-2 text-gray-600">
+                        Vista centralizada para gestionar las notas del curso.
+                    </p>
+                </div>
+                 <div className="flex items-center gap-4">
+                    {saveStatus === 'saved' && (
+                        <div className="flex items-center gap-2 text-green-600 font-semibold bg-green-100 py-2 px-4 rounded-lg">
+                           <CheckIcon className="h-5 w-5"/>
+                           ¡Guardado!
+                        </div>
+                    )}
+                    <button
+                        onClick={handleSaveChanges}
+                        disabled={!isDirty || saveStatus === 'saving'}
+                        className="bg-teal-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-teal-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                    >
+                        {saveStatus === 'saving' ? 'Guardando...' : 'Guardar Cambios'}
+                    </button>
+                </div>
             </header>
 
             <div className="mb-6 border-b border-gray-200">
@@ -580,8 +612,20 @@ const GestionAcademicaView: React.FC<GestionAcademicaViewProps> = (props) => {
             </div>
             
             <div>
-                {activeTab === 'principal' && <ModuloPrincipalTab {...props} />}
-                {activeTab === 'otros' && <OtrosModulosTab {...props} />}
+                {activeTab === 'principal' && (
+                    <ModuloPrincipalTab 
+                        {...props} 
+                        academicGrades={localAcademicGrades} 
+                        handleGradeChange={handlePrincipalGradeChange}
+                    />
+                )}
+                {activeTab === 'otros' && (
+                    <OtrosModulosTab 
+                        students={props.students}
+                        courseGrades={localCourseGrades}
+                        handleGradeChange={handleOtrosGradeChange}
+                    />
+                )}
             </div>
         </div>
     );
