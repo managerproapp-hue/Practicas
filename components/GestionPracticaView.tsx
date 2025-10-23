@@ -2,6 +2,35 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Student, ServiceMenu, ServiceDish } from '../types';
 import { UsersIcon, GroupIcon, ServiceIcon, CalendarIcon, TrashIcon, CloseIcon, CogIcon, PlusIcon, PencilIcon, CheckIcon, XIcon, DownloadIcon } from './icons';
 import { downloadPdfWithTables, exportToExcel } from './printUtils';
+import { GoogleGenAI } from '@google/genai';
+
+
+// --- GEMINI API SETUP ---
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const geminiApiCall = async (prompt: string): Promise<Record<string, string>> => {
+    console.log("--- Sending prompt to Gemini API ---");
+    console.log(prompt);
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+            },
+        });
+        
+        const jsonText = response.text;
+        const result = JSON.parse(jsonText);
+
+        console.log("--- Gemini API Response ---", result);
+        return result as Record<string, string>;
+
+    } catch (error) {
+        console.error("Error calling Gemini API:", error);
+        alert("Hubo un error al contactar con la IA para las asignaciones. Por favor, inténtelo de nuevo más tarde.");
+        throw new Error("Failed to get assignments from AI.");
+    }
+};
 
 
 // --- HELPER FUNCTION ---
@@ -53,43 +82,6 @@ const colorStyles: Record<string, { border: string; bg: string }> = {
   pink: { border: 'border-pink-500', bg: 'bg-pink-50' },
   indigo: { border: 'border-indigo-500', bg: 'bg-indigo-50' },
   default: { border: 'border-gray-200', bg: 'bg-gray-50' },
-};
-
-
-// --- MOCK API for AI assignments ---
-const mockGeminiApiCall = (prompt: string): Promise<Record<string, string>> => {
-    console.log("--- Sending prompt to Mock Gemini API ---");
-    console.log(prompt);
-    
-    const studentsMatch = prompt.match(/Students to assign: (\[.*?\])/);
-    const rolesMatch = prompt.match(/Available secondary roles to fill: (\[.*?\])/);
-    
-    if (!studentsMatch || !rolesMatch) {
-      return Promise.reject("Invalid prompt format for mock API");
-    }
-
-    const studentsToAssign: {nre: string}[] = JSON.parse(studentsMatch[1]);
-    const availableRoles: string[] = JSON.parse(rolesMatch[1]);
-
-    const assignments: Record<string, string> = {};
-    let studentPool = [...studentsToAssign].sort(() => Math.random() - 0.5);
-    let rolePool = [...availableRoles].sort(() => Math.random() - 0.5);
-
-    // Assign one unique role to each student until roles or students run out.
-    while(studentPool.length > 0 && rolePool.length > 0) {
-        const student = studentPool.pop();
-        const role = rolePool.shift();
-        if(student && role) {
-            assignments[student.nre] = role;
-        }
-    }
-    // Any remaining students are left unassigned, as per the corrected logic.
-    // The previous logic incorrectly assigned "Ayudante" to all remaining students,
-    // violating the unique role constraint within a group.
-
-    console.log("--- Mock Gemini API Response ---", assignments);
-
-    return new Promise(resolve => setTimeout(() => resolve(assignments), 500));
 };
 
 
@@ -386,7 +378,7 @@ const PlanningTab: React.FC<{
                 Output the result as a single, valid JSON object where keys are student NREs (as strings) and values are the assigned role (as a string).
                 `;
 
-                const aiGroupAssignments = await mockGeminiApiCall(prompt);
+                const aiGroupAssignments = await geminiApiCall(prompt);
                 Object.keys(aiGroupAssignments).forEach(nre => {
                     if(!newServiceAssignments[nre]){ // Double check not to overwrite
                         newServiceAssignments[nre] = aiGroupAssignments[nre];
@@ -404,7 +396,6 @@ const PlanningTab: React.FC<{
 
         } catch (error) {
             console.error("AI Assignment failed:", error);
-            alert("Error al desplegar con IA.");
         } finally {
             setIsLoading(null);
         }

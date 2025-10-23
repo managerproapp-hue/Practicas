@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Student, Annotation, Interview } from '../types';
 import { BackIcon, PlusIcon, PencilIcon } from './icons';
 
