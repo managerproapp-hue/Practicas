@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 // FIX: Module '"./components/Sidebar"' has no default export. Using a named import instead.
 import { Sidebar } from './components/Sidebar';
@@ -10,6 +9,7 @@ import GestionPracticaView from './components/GestionPracticaView';
 import CocinaView from './components/CocinaView';
 import GestionAppView from './components/GestionAppView';
 import GestionNotasView from './components/GestionNotasView';
+import RegistroSalidasView from './components/RegistroSalidasView';
 import ExamenesPracticosView from './components/ExamenesPracticosView';
 import GestionAcademicaView from './components/GestionAcademicaView';
 import DashboardView from './components/DashboardView';
@@ -113,6 +113,11 @@ const App: React.FC = () => {
                   setStudents={setStudents}
                   evaluations={evaluations} 
                   setEvaluations={setEvaluations} 
+               />;
+      case 'Registro de Salidas':
+        return <RegistroSalidasView
+                  students={students}
+                  setStudents={setStudents}
                />;
       case 'Exámenes Prácticos':
         return <ExamenesPracticosView 

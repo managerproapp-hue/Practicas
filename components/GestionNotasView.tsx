@@ -36,13 +36,9 @@ const EvaluationForm: React.FC<{
     studentGroupAssignments: StudentGroupAssignments;
     evaluations: EvaluationsState;
     setEvaluations: React.Dispatch<React.SetStateAction<EvaluationsState>>;
-    setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
     onBack: () => void;
     serviceMenus: { [serviceId: string]: ServiceMenu };
-}> = ({ service, students, studentGroupAssignments, evaluations, setEvaluations, setStudents, onBack, serviceMenus }) => {
-
-    const [departureSelections, setDepartureSelections] = useState<Record<string, Set<string>>>({});
-    const [departureNotes, setDepartureNotes] = useState<Record<string, string>>({});
+}> = ({ service, students, studentGroupAssignments, evaluations, setEvaluations, onBack, serviceMenus }) => {
 
     const assignedGroups = useMemo(() => {
         return [...new Set([...service.groupAssignments.comedor, ...service.groupAssignments.takeaway])]
@@ -137,69 +133,6 @@ const EvaluationForm: React.FC<{
             return newEvals;
         });
     };
-
-    const handleDepartureSelectionChange = (groupId: string, studentNre: string) => {
-        setDepartureSelections(prev => {
-            const newSelections = { ...prev };
-            const groupSet = new Set(newSelections[groupId] || []);
-            if (groupSet.has(studentNre)) {
-                groupSet.delete(studentNre);
-            } else {
-                groupSet.add(studentNre);
-            }
-            newSelections[groupId] = groupSet;
-            return newSelections;
-        });
-    };
-    
-    const handleDepartureNoteChange = (groupId: string, note: string) => {
-        setDepartureNotes(prev => ({...prev, [groupId]: note}));
-    };
-
-    const handleSaveDepartures = (groupId: string) => {
-        const nresToAnnotate = departureSelections[groupId];
-        const note = departureNotes[groupId];
-
-        if (!nresToAnnotate || nresToAnnotate.size === 0) {
-            alert("Por favor, selecciona al menos un alumno.");
-            return;
-        }
-        if (!note || note.trim() === '') {
-            alert("Por favor, escribe una anotación.");
-            return;
-        }
-
-        setStudents(prevStudents => {
-            return prevStudents.map(student => {
-                if (nresToAnnotate.has(student.nre)) {
-                    const newAnnotation: Annotation = {
-                        id: `ann_${Date.now()}_${Math.random()}`,
-                        date: service.date,
-                        note: note,
-                        type: 'negative',
-                        subtype: 'early_departure'
-                    };
-                    const updatedAnnotations = [...(student.anotaciones || []), newAnnotation];
-                    return { ...student, anotaciones: updatedAnnotations };
-                }
-                return student;
-            });
-        });
-
-        alert(`${nresToAnnotate.size} anotaciones de salida anticipada guardadas correctamente. Se verán reflejadas en la ficha de cada alumno.`);
-        
-        setDepartureSelections(prev => {
-            const newSelections = { ...prev };
-            delete newSelections[groupId];
-            return newSelections;
-        });
-        setDepartureNotes(prev => {
-            const newNotes = { ...prev };
-            delete newNotes[groupId];
-            return newNotes;
-        });
-    };
-
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-md">
@@ -338,53 +271,6 @@ const EvaluationForm: React.FC<{
                                             );
                                         })}
                                     </div>
-                                </div>
-                                
-                                {/* Early Departure Log */}
-                                <div className="mt-6">
-                                    <details className="bg-white p-3 rounded-md border">
-                                        <summary className="font-semibold text-md cursor-pointer text-yellow-800">
-                                            Registro de Salidas Anticipadas
-                                        </summary>
-                                        <div className="mt-4 pt-4 border-t space-y-3">
-                                            <p className="text-xs text-gray-600">
-                                                Selecciona los alumnos que han abandonado el servicio antes de su finalización y añade una anotación.
-                                            </p>
-                                            <div className="space-y-2 max-h-40 overflow-y-auto border p-2 rounded-md">
-                                                {studentsInGroup.map(student => (
-                                                    <label key={student.nre} className="flex items-center p-2 rounded-md hover:bg-gray-100 cursor-pointer">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={departureSelections[groupId]?.has(student.nre) || false}
-                                                            onChange={() => handleDepartureSelectionChange(groupId, student.nre)}
-                                                            className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
-                                                        />
-                                                        <span className="ml-3 text-sm">{student.apellido1} {student.apellido2}, {student.nombre}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mt-4">
-                                                    Anotación (para todos los seleccionados)
-                                                </label>
-                                                <textarea 
-                                                    value={departureNotes[groupId] || ''}
-                                                    onChange={e => handleDepartureNoteChange(groupId, e.target.value)}
-                                                    rows={2} 
-                                                    placeholder="Ej: Se marchó a las 14:30 sin previo aviso."
-                                                    className="w-full mt-1 p-2 border rounded-md"
-                                                ></textarea>
-                                            </div>
-                                            <div className="text-right">
-                                                <button 
-                                                    onClick={() => handleSaveDepartures(groupId)}
-                                                    className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm"
-                                                >
-                                                    Guardar Anotación de Salida
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </details>
                                 </div>
                             </div>
                         </details>
@@ -662,7 +548,6 @@ const GestionNotasView: React.FC<GestionNotasViewProps> = ({ students, setStuden
                     studentGroupAssignments={studentGroupAssignments}
                     evaluations={evaluations}
                     setEvaluations={setEvaluations}
-                    setStudents={setStudents}
                     onBack={handleBackToSummary}
                     serviceMenus={serviceMenus}
                 />

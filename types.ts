@@ -1,4 +1,3 @@
-
 export interface Interview {
   id: string;
   date: string;
@@ -46,7 +45,8 @@ export type NavItemType =
   | 'Dashboard'
   | 'Alumnos' 
   | 'Gestión Práctica' 
-  | 'Gestión de Notas' 
+  | 'Gestión de Notas'
+  | 'Registro de Salidas'
   | 'Exámenes Prácticos'
   | 'Gestión Académica'
   | 'Cocina'
