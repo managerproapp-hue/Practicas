@@ -110,6 +110,7 @@ const App: React.FC = () => {
       case 'Gestión de Notas':
         return <GestionNotasView 
                   students={students} 
+                  setStudents={setStudents}
                   evaluations={evaluations} 
                   setEvaluations={setEvaluations} 
                />;

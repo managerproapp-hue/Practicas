@@ -1,3 +1,4 @@
+
 export interface Interview {
   id: string;
   date: string;
@@ -10,6 +11,7 @@ export interface Annotation {
   date: string;
   note: string;
   type: 'positive' | 'negative' | 'neutral';
+  subtype?: string;
 }
 
 export interface Student {

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Student, EvaluationsState, Service, StudentGroupAssignments, EvaluationItemScore, StudentPracticalExam, TheoreticalExamGrades, Interview, Annotation, CourseGrades, CourseModuleGrades } from '../types';
 import { CloseIcon, PencilIcon, PlusIcon } from './icons';
@@ -227,6 +228,11 @@ const GeneralInfoTab: React.FC<{
         setLocalStudent(student);
     }, [student]);
 
+    const earlyDepartures = useMemo(() => 
+        (localStudent.anotaciones || []).filter(a => a.subtype === 'early_departure').slice().reverse(),
+        [localStudent.anotaciones]
+    );
+
     const handleSaveInterview = () => {
         if(!newInterview.date || !newInterview.notes) return;
         const newInterviewData: Interview = {
@@ -320,16 +326,31 @@ const GeneralInfoTab: React.FC<{
                     </div>
                 </div>
             </div>
-             <div className="bg-white p-3 rounded-lg shadow-sm">
-                <h2 className="text-md font-bold mb-2 text-gray-700">Anotaciones Recientes</h2>
-                 <div className="max-h-48 overflow-y-auto pr-2 space-y-2">
-                    {(localStudent.anotaciones || []).slice().reverse().map(annotation => (
-                         <div key={annotation.id} className={`p-2 border-l-4 ${getAnnotationColor(annotation.type)} bg-gray-50`}>
-                            <p className="text-xs text-gray-800">{annotation.note}</p>
-                            <p className="text-xxs text-gray-400 mt-1">{new Date(annotation.date).toLocaleDateString()}</p>
-                        </div>
-                    ))}
-                    {(localStudent.anotaciones || []).length === 0 && <p className="text-xs text-gray-500 italic">No hay anotaciones.</p>}
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="bg-white p-3 rounded-lg shadow-sm">
+                    <h2 className="text-md font-bold mb-2 text-yellow-700">Registro de Salidas Anticipadas</h2>
+                    <div className="max-h-48 overflow-y-auto pr-2 space-y-2">
+                        {earlyDepartures.length > 0 ? earlyDepartures.map(annotation => (
+                            <div key={annotation.id} className={`p-2 border-l-4 border-yellow-500 bg-yellow-50`}>
+                                <p className="text-xs text-gray-800">{annotation.note}</p>
+                                <p className="text-xxs text-gray-400 mt-1">{new Date(annotation.date).toLocaleDateString()}</p>
+                            </div>
+                        )) : (
+                            <p className="text-xs text-gray-500 italic">No hay registros de salidas anticipadas.</p>
+                        )}
+                    </div>
+                </div>
+                <div className="bg-white p-3 rounded-lg shadow-sm">
+                    <h2 className="text-md font-bold mb-2 text-gray-700">Anotaciones Generales Recientes</h2>
+                    <div className="max-h-48 overflow-y-auto pr-2 space-y-2">
+                        {(localStudent.anotaciones || []).slice().reverse().map(annotation => (
+                            <div key={annotation.id} className={`p-2 border-l-4 ${getAnnotationColor(annotation.type)} bg-gray-50`}>
+                                <p className="text-xs text-gray-800">{annotation.note}</p>
+                                <p className="text-xxs text-gray-400 mt-1">{new Date(annotation.date).toLocaleDateString()}</p>
+                            </div>
+                        ))}
+                        {(localStudent.anotaciones || []).length === 0 && <p className="text-xs text-gray-500 italic">No hay anotaciones.</p>}
+                    </div>
                 </div>
             </div>
         </div>
