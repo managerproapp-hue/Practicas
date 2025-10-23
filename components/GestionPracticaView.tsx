@@ -911,18 +911,19 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({ students }) =
   
   // Ensure initial colors are set for existing groups
   useEffect(() => {
-    let updated = false;
-    const newColors = { ...groupColors };
-    practicaGroups.forEach((group, index) => {
+    setGroupColors(prevColors => {
+      const newColors = { ...prevColors };
+      let needsUpdate = false;
+      practicaGroups.forEach((group, index) => {
         if (!newColors[group]) {
-            newColors[group] = COLOR_PALETTE[index % COLOR_PALETTE.length];
-            updated = true;
+          newColors[group] = COLOR_PALETTE[index % COLOR_PALETTE.length];
+          needsUpdate = true;
         }
+      });
+      // Return the previous state object if no changes were made to prevent unnecessary re-renders.
+      return needsUpdate ? newColors : prevColors;
     });
-    if (updated) {
-        setGroupColors(newColors);
-    }
-  }, [practicaGroups, groupColors]);
+  }, [practicaGroups]);
 
 
   const renderContent = () => {
