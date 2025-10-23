@@ -141,27 +141,18 @@ const CreacionMenusView: React.FC = () => {
 
     useEffect(() => {
         // Sync menus state with existing services. Remove menus for deleted services.
-        // This effect runs only when the services list changes.
         const serviceIds = new Set(services.map(s => s.id));
-        
-        setMenus(currentMenus => {
-            const menuServiceIds = Object.keys(currentMenus);
-            const menuIdsToDelete = menuServiceIds.filter(id => !serviceIds.has(id));
+        const currentMenuIds = Object.keys(menus);
+        const menusToDelete = currentMenuIds.filter(id => !serviceIds.has(id));
 
-            // If there are no menus to delete, return the current state to avoid a re-render.
-            if (menuIdsToDelete.length === 0) {
-                return currentMenus;
-            }
-            
-            // Otherwise, create a new object and delete the necessary keys.
-            const newMenus = { ...currentMenus };
-            menuIdsToDelete.forEach(id => {
+        if (menusToDelete.length > 0) {
+            const newMenus = { ...menus };
+            menusToDelete.forEach(id => {
                 delete newMenus[id];
             });
-            
-            return newMenus;
-        });
-    }, [services]);
+            setMenus(newMenus);
+        }
+    }, [services, menus]);
     
     const getMenuForService = useCallback((serviceId: string): Menu => {
         if (menus[serviceId]) return menus[serviceId];
