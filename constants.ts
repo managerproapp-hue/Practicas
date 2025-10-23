@@ -728,7 +728,5 @@ export const RAW_PRODUCTS: Array<Omit<Product, 'price'> & {allergens: string[]}>
   {"id":"prod_0450","name":"Berberecho de Ría","category":"mariscos","unit":"kg","allergens":["MOL"]},
   {"id":"prod_0451","name":"Navaja de Ría","category":"mariscos","unit":"kg","allergens":["MOL"]},
   {"id":"prod_0452","name":"Ostra plana de Belon","category":"mariscos","unit":"unidad","allergens":["MOL"]},
-// FIX: The last product object in the RAW_PRODUCTS array was incomplete, causing a type error.
-// Adding the missing 'category', 'unit', and 'allergens' properties to "Vieira de peñas".
-  {"id":"prod_0453","name":"Vieira de peñas","category":"mariscos","unit":"kg","allergens":["MOL"]}
+  {"id":"prod_0453","name":"Vieira de peñas", "category": "mariscos", "unit": "kg", "allergens": ["MOL"]}
 ];
