@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
-// FIX: Module '"./components/Sidebar"' has no default export. Using a named import instead.
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Sidebar } from './components/Sidebar';
-import AlumnosView from './components/AlumnosView';
 import Login from './components/Login';
 import { Student, NavItemType, EvaluationsState, StudentPracticalExam, TheoreticalExamGrades, CourseGrades } from './types';
 import { INITIAL_STUDENTS } from './constants';
-import GestionPracticaView from './components/GestionPracticaView';
-import CocinaView from './components/CocinaView';
-import GestionAppView from './components/GestionAppView';
-import GestionNotasView from './components/GestionNotasView';
-import RegistroSalidasView from './components/RegistroSalidasView';
-import ExamenesPracticosView from './components/ExamenesPracticosView';
-import GestionAcademicaView from './components/GestionAcademicaView';
-import DashboardView from './components/DashboardView';
+
+// Lazy load view components to prevent crashes in one view from blocking the entire app load.
+const DashboardView = lazy(() => import('./components/DashboardView'));
+const AlumnosView = lazy(() => import('./components/AlumnosView'));
+const GestionPracticaView = lazy(() => import('./components/GestionPracticaView'));
+const CocinaView = lazy(() => import('./components/CocinaView'));
+const GestionAppView = lazy(() => import('./components/GestionAppView'));
+const GestionNotasView = lazy(() => import('./components/GestionNotasView'));
+const RegistroSalidasView = lazy(() => import('./components/RegistroSalidasView'));
+const ExamenesPracticosView = lazy(() => import('./components/ExamenesPracticosView'));
+const GestionAcademicaView = lazy(() => import('./components/GestionAcademicaView'));
+
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -143,12 +145,20 @@ const App: React.FC = () => {
   if (!isAuthenticated) {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
   }
+  
+  const LoadingSpinner = () => (
+    <div className="flex justify-center items-center h-full w-full">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-teal-500"></div>
+    </div>
+  );
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans">
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
       <main className="flex-1 overflow-y-auto">
-        {renderView()}
+        <Suspense fallback={<LoadingSpinner />}>
+          {renderView()}
+        </Suspense>
       </main>
     </div>
   );
