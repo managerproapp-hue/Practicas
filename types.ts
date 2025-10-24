@@ -112,11 +112,17 @@ export interface Service {
     comedor: string[];
     takeaway: string[];
   };
+  finalized?: boolean;
 }
 
 export type StudentGroupAssignments = Record<string, string>; // { [studentNre]: groupName }
 
 export type PlanningAssignments = Record<string, Record<string, string>>; // { [serviceId]: { [studentNre]: role } }
+
+export interface Role {
+    name: string;
+    type: 'leader' | 'secondary';
+}
 
 
 // --- CREACIÓN DE MENÚS TYPES ---

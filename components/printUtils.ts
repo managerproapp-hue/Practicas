@@ -1,4 +1,4 @@
-import { TeacherData, InstituteData } from './types';
+import { TeacherData, InstituteData, Service, Student, PlanningAssignments, StudentGroupAssignments, Role } from './types';
 
 // Declare the libraries loaded from CDN
 declare var jspdf: any;
@@ -146,6 +146,132 @@ export const downloadPdfWithTables = async (title: string, fileName: string, tab
     
     doc.save(`${fileName}.pdf`);
 };
+
+export const downloadPlanningPdf = async (
+    service: Service,
+    allStudents: Student[],
+    allAssignments: PlanningAssignments,
+    studentGroupAssignments: StudentGroupAssignments,
+    leaderRoles: Role[]
+) => {
+    const { jsPDF } = jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    const assignmentsForService = allAssignments[service.id] || {};
+    const leaderRoleNames = new Set(leaderRoles.map(r => r.name));
+    
+    const teacherData = getStoredData<TeacherData>('teacher-app-data', { name: 'Profesor', email: '' });
+    const instituteData = getStoredData<InstituteData>('institute-app-data', { name: 'IES La Flota', address: '', cif: '' });
+    let instituteLogo: any, teacherLogo: any;
+    const logoHeight = 12;
+    if (instituteData.logo) {
+         try {
+            const dims = await getImageDimensions(instituteData.logo);
+            instituteLogo = { data: instituteData.logo, width: (dims.width / dims.height) * logoHeight, height: logoHeight };
+        } catch(e) { console.error("Error processing institute logo", e); }
+    }
+    if (teacherData.logo) {
+        try {
+            const dims = await getImageDimensions(teacherData.logo);
+            teacherLogo = { data: teacherData.logo, width: (dims.width / dims.height) * logoHeight, height: logoHeight };
+        } catch(e) { console.error("Error processing teacher logo", e); }
+    }
+
+    const margin = { top: 35, right: 15, bottom: 20, left: 15 };
+    let finalY = margin.top;
+
+    const leaderAssignments = Object.entries(assignmentsForService)
+        .filter(([, role]) => leaderRoleNames.has(role))
+        .map(([nre, role]) => ({
+            student: allStudents.find(s => s.nre === nre),
+            role: role
+        }))
+        .filter(item => item.student);
+
+    const tables: any[] = [];
+    
+    // 1. Líderes del Servicio Table
+    if (leaderAssignments.length > 0) {
+        const body = leaderRoles.map(role => {
+            const assignment = leaderAssignments.find(a => a.role === role.name);
+            const studentName = assignment ? `${assignment.student!.apellido1} ${assignment.student!.apellido2}, ${assignment.student!.nombre}`.toUpperCase() : '';
+            return [role.name, studentName];
+        });
+        tables.push({
+            head: [['Líderes del Servicio', '']],
+            body,
+            theme: 'striped',
+            headStyles: { fillColor: '#e0f2f1', textColor: '#004d40', fontStyle: 'bold' },
+            columnStyles: { 0: { fontStyle: 'bold' } },
+        });
+    }
+
+    const generateGroupTables = (groupType: 'comedor' | 'takeaway') => {
+        const assignedGroups = service.groupAssignments[groupType];
+        if (assignedGroups.length > 0) {
+             tables.push({
+                body: [[{ content: `SERVICIO DE ${groupType.toUpperCase()}`, styles: { halign: 'center', fontStyle: 'bold', fontSize: 14, fillColor: groupType === 'comedor' ? '#e8f5e9' : '#e3f2fd' } }]],
+                theme: 'plain'
+             });
+
+            assignedGroups.forEach(groupName => {
+                const members = allStudents.filter(s => studentGroupAssignments[s.nre] === groupName);
+                const memberAssignments = members.map(m => ({
+                    name: `${m.apellido1} ${m.apellido2}, ${m.nombre}`.toUpperCase(),
+                    role: assignmentsForService[m.nre] || 'Sin asignar'
+                })).filter(m => !leaderRoleNames.has(m.role));
+
+                if (memberAssignments.length > 0) {
+                     tables.push({
+                        head: [[{ content: groupName, colSpan: 2, styles: { fillColor: '#f5f5f5', textColor: '#424242' } }]],
+                        body: memberAssignments.sort((a,b) => a.name.localeCompare(b.name)).map(item => [item.name, item.role]),
+                        headStyles: { fontStyle: 'bold' },
+                        columnStyles: { 1: { halign: 'right' } }
+                    });
+                }
+            });
+        }
+    };
+    
+    generateGroupTables('comedor');
+    generateGroupTables('takeaway');
+
+    // Drawing logic
+    const drawPage = (data: any) => {
+        // Header
+        if (instituteLogo) doc.addImage(instituteLogo.data, 'PNG', margin.left, 10, instituteLogo.width, instituteLogo.height);
+        if (teacherLogo) doc.addImage(teacherLogo.data, 'PNG', doc.internal.pageSize.getWidth() - margin.right - teacherLogo.width, 10, teacherLogo.width, teacherLogo.height);
+        
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Planning: ${service.name}`, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Comienzo curso (${new Date(service.date).toLocaleDateString()})`, doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' });
+        
+        // Footer
+        const pageCount = doc.internal.getNumberOfPages();
+        doc.setFontSize(8);
+        const footerY = doc.internal.pageSize.getHeight() - 10;
+        doc.text(`${instituteData.name} - ${teacherData.name}`, margin.left, footerY);
+        doc.text(`Página ${data.pageNumber}`, doc.internal.pageSize.getWidth() / 2, footerY, { align: 'center' });
+        doc.text(new Date().toLocaleDateString(), doc.internal.pageSize.getWidth() - margin.right, footerY, { align: 'right' });
+    };
+
+    let startY = margin.top;
+    tables.forEach(table => {
+        doc.autoTable({
+            ...table,
+            startY,
+            margin,
+            didDrawPage: drawPage
+        });
+        startY = doc.lastAutoTable.finalY + 6;
+    });
+
+    doc.save(`planning_${service.name.replace(/\s+/g, '_')}.pdf`);
+};
+
 
 /**
  * [LEGACY - Deprecated for new implementations] Generates a PDF from HTML.
