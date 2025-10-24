@@ -1,4 +1,4 @@
-import { Student, NavItemType, Product } from './types';
+import { Student, NavItemType } from './types';
 
 export const INITIAL_STUDENTS: Student[] = [
   {
@@ -71,7 +71,6 @@ export const NAV_ITEMS: NavItemType[] = [
   'Registro de Salidas',
   'Exámenes Prácticos',
   'Gestión Académica',
-  'Cocina',
   'Gestión de la App',
 ];
 
@@ -235,44 +234,3 @@ export const ACADEMIC_EVALUATION_STRUCTURE = {
     ]
   }
 };
-
-export const PRODUCT_CATEGORIES = ['Carnes', 'Pescados', 'Mariscos', 'Lácteos', 'Verduras', 'Frutas', 'Congelados', 'Almacén', 'Aceites y Vinagres', 'Condimentos', 'Cereales', 'Bebidas', 'Otros'];
-export const PRODUCT_UNITS = ['kg', 'litro', 'unidad', 'gramo', 'mililitro', 'manojo'];
-export const ALLERGENS = ['Gluten', 'Lactosa', 'Frutos Secos', 'Pescado', 'Huevo', 'Soja', 'Marisco', 'Apio', 'Mostaza', 'Sésamo', 'Sulfitos', 'Altramuces', 'Moluscos', 'Cacahuete'];
-export const RECIPE_CATEGORIES = ['Entrantes', 'Sopas y Cremas', 'Ensaladas', 'Arroces y Pastas', 'Carnes', 'Pescados', 'Guarniciones', 'Postres', 'Salsas', 'Bebidas'];
-
-export const ALLERGEN_MAP: { [key: string]: string } = {
-  HUE: 'Huevo',
-  GLU: 'Gluten',
-  PES: 'Pescado',
-  CRU: 'Marisco',
-  MOL: 'Moluscos',
-  API: 'Apio',
-  SOY: 'Soja',
-  FRA: 'Frutos Secos',
-  CAC: 'Cacahuete',
-  SES: 'Sésamo',
-  MUS: 'Mostaza',
-  SUL: 'Sulfitos',
-  LAC: 'Lactosa',
-};
-
-export const normalizeCategory = (cat: string): string => {
-    const mapping: { [key: string]: string } = {
-        carnes: 'Carnes',
-        pescados: 'Pescados',
-        mariscos: 'Mariscos',
-        lacteos: 'Lácteos',
-        verduras: 'Verduras',
-        frutas: 'Frutas',
-        congelados: 'Congelados',
-        almacen: 'Almacén',
-        aceites: 'Aceites y Vinagres',
-        condimentos: 'Condimentos',
-    };
-    return mapping[cat.toLowerCase()] || 'Otros';
-};
-
-
-// FIX: Export RAW_PRODUCTS so it can be used in other files.
-export const RAW_PRODUCTS: Array<Omit<Product, 'price'> & {allergens: string[]}> = [];

@@ -8,7 +8,6 @@ import { INITIAL_STUDENTS } from './constants';
 const DashboardView = lazy(() => import('./components/DashboardView'));
 const AlumnosView = lazy(() => import('./components/AlumnosView'));
 const GestionPracticaView = lazy(() => import('./components/GestionPracticaView'));
-const CocinaView = lazy(() => import('./components/CocinaView'));
 const GestionAppView = lazy(() => import('./components/GestionAppView'));
 const GestionNotasView = lazy(() => import('./components/GestionNotasView'));
 const RegistroSalidasView = lazy(() => import('./components/RegistroSalidasView'));
@@ -105,8 +104,6 @@ const App: React.FC = () => {
                 />;
       case 'Gestión Práctica':
         return <GestionPracticaView students={students} />;
-      case 'Cocina':
-        return <CocinaView />;
       case 'Gestión de la App':
         return <GestionAppView />;
       case 'Gestión de Notas':

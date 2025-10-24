@@ -26,13 +26,7 @@ const BACKUP_MODULES = [
     { key: 'groupColors', label: 'Colores de Grupos' },
     { key: 'practicaServices', label: 'Servicios de Prácticas' },
     { key: 'planningAssignments', label: 'Planning de Servicios' },
-    { key: 'practicaServiceMenus', label: 'Fichas de Servicio (Menús)' },
-
-    // Kitchen Module
-    { key: 'cocina-catalogo-productos', label: 'Catálogo de Productos' },
-    { key: 'cocina-mi-recetario', label: 'Mi Recetario' },
-    { key: 'cocina-menus', label: 'Creación de Menús' },
-
+    
     // App Settings
     { key: 'teacher-app-data', label: 'Datos del Profesor' },
     { key: 'institute-app-data', label: 'Datos del Instituto' }

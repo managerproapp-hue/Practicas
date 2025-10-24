@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavItemType } from '../types';
 import { NAV_ITEMS } from '../constants';
-import { UsersIcon, ClipboardIcon, GradeIcon, AcademicIcon, AppIcon, KitchenIcon, CodeBracketIcon, DashboardIcon, ExitIcon } from './icons';
+import { UsersIcon, ClipboardIcon, GradeIcon, AcademicIcon, AppIcon, CodeBracketIcon, DashboardIcon, ExitIcon } from './icons';
 
 interface SidebarProps {
   activeView: NavItemType;
@@ -16,7 +16,6 @@ const ICONS: Record<NavItemType, React.ReactNode> = {
   'Registro de Salidas': <ExitIcon />,
   'Exámenes Prácticos': <ClipboardIcon />,
   'Gestión Académica': <AcademicIcon />,
-  'Cocina': <KitchenIcon />,
   'Gestión de la App': <AppIcon />,
 };
 

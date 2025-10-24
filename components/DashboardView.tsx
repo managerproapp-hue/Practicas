@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Student, EvaluationsState, NavItemType, Annotation } from '../types';
-import { UsersIcon, ClipboardIcon, PlusIcon, KitchenIcon, CalendarIcon } from './icons';
+import { UsersIcon, ClipboardIcon, PlusIcon, CalendarIcon } from './icons';
 
 interface Service {
   id: string;
@@ -73,7 +73,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ students, setActiveView }
         { name: "Añadir Alumno", description: "Incorpora un nuevo estudiante al sistema.", view: "Alumnos", icon: <PlusIcon/> },
         { name: "Planificar Servicio", description: "Configura grupos y roles para las prácticas.", view: "Gestión Práctica", icon: <ClipboardIcon /> },
         { name: "Ver Alumnos", description: "Consulta y gestiona las fichas de los estudiantes.", view: "Alumnos", icon: <UsersIcon /> },
-        { name: "Crear Receta", description: "Añade una nueva ficha técnica al recetario.", view: "Cocina", icon: <KitchenIcon /> }
     ];
     
     return (
@@ -122,7 +121,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ students, setActiveView }
                     {/* Quick Links */}
                     <div className="md:col-span-2">
                         <h2 className="text-xl font-bold text-gray-800 mb-4">Accesos Rápidos</h2>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                            {quickLinks.map(link => (
                                 <button key={link.name} onClick={() => setActiveView(link.view)} className="bg-white p-4 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all text-left">
                                     <div className="flex items-start gap-4">
