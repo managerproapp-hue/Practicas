@@ -1,5 +1,5 @@
 {
-  "name": "Teacher Management 1.4",
+  "name": "Teacher Management 1.5",
   "description": "A modern web application dashboard for a teacher management system. It allows managing students, grades, and academic data, featuring an Excel import functionality.",
   "requestFramePermissions": []
 }
