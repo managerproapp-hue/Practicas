@@ -2,47 +2,6 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Student, ServiceMenu, ServiceDish, Service, StudentGroupAssignments, PlanningAssignments } from '../types';
 import { UsersIcon, GroupIcon, ServiceIcon, CalendarIcon, TrashIcon, CloseIcon, CogIcon, PlusIcon, PencilIcon, CheckIcon, XIcon, DownloadIcon } from './icons';
 import { downloadPdfWithTables, exportToExcel } from './printUtils';
-import { GoogleGenAI } from '@google/genai';
-
-
-// --- GEMINI API SETUP ---
-const geminiApiCall = async (prompt: string): Promise<Record<string, string>> => {
-    console.log("--- Sending prompt to Gemini API ---");
-    console.log(prompt);
-    try {
-        if (!process.env.API_KEY) {
-            console.error("Gemini API key is missing.");
-            alert("Error de configuración: La clave API de Gemini no está configurada. Por favor, configúrala en el entorno de despliegue (Vercel).");
-            throw new Error("API_KEY environment variable not set.");
-        }
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-            },
-        });
-        
-        const jsonText = response.text;
-        const result = JSON.parse(jsonText);
-
-        console.log("--- Gemini API Response ---", result);
-        return result as Record<string, string>;
-
-    } catch (error) {
-        console.error("Error calling Gemini API:", error);
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        if (errorMessage.includes("API_KEY")) {
-             alert("Error de configuración: La clave API de Gemini no está configurada. Por favor, configúrala en el entorno de despliegue (Vercel).");
-        } else {
-            alert("Hubo un error al contactar con la IA para las asignaciones. Por favor, inténtelo de nuevo más tarde.");
-        }
-        throw new Error("Failed to get assignments from AI.");
-    }
-};
-
 
 // --- HELPER FUNCTION ---
 const safeJsonParse = <T,>(key: string, defaultValue: T): T => {
@@ -342,11 +301,22 @@ const PlanningTab: React.FC<{
 
     const handleDeployAI = async (service: Service) => {
         setIsLoading(service.id);
-        const serviceGroups = [...new Set([...service.groupAssignments.comedor, ...service.groupAssignments.takeaway])];
-        let newServiceAssignments = { ...(planningAssignments[service.id] || {}) };
-        let assignmentsMadeCount = 0;
+        
+        if (!process.env.API_KEY) {
+            console.error("Gemini API key is missing.");
+            alert("Error de configuración: La clave API de Gemini no está configurada. Por favor, configúrala en el entorno de despliegue (Vercel).");
+            setIsLoading(null);
+            return;
+        }
 
         try {
+            const { GoogleGenAI } = await import('@google/genai');
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+            let newServiceAssignments = { ...(planningAssignments[service.id] || {}) };
+            let assignmentsMadeCount = 0;
+            const serviceGroups = [...new Set([...service.groupAssignments.comedor, ...service.groupAssignments.takeaway])];
+
             for (const groupName of serviceGroups) {
                 const studentsInGroup = students.filter(s => studentGroupAssignments[s.nre] === groupName);
                 const assignedNREsInGroup = new Set(Object.keys(newServiceAssignments));
@@ -375,7 +345,20 @@ const PlanningTab: React.FC<{
                 Output the result as a single, valid JSON object where keys are student NREs (as strings) and values are the assigned role (as a string).
                 `;
 
-                const aiGroupAssignments = await geminiApiCall(prompt);
+                console.log("--- Sending prompt to Gemini API for group:", groupName);
+                
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                    config: {
+                        responseMimeType: 'application/json',
+                    },
+                });
+                
+                const jsonText = response.text;
+                const aiGroupAssignments = JSON.parse(jsonText) as Record<string, string>;
+                console.log("--- Gemini API Response ---", aiGroupAssignments);
+
                 Object.keys(aiGroupAssignments).forEach(nre => {
                     if(!newServiceAssignments[nre]){ // Double check not to overwrite
                         newServiceAssignments[nre] = aiGroupAssignments[nre];
@@ -389,10 +372,20 @@ const PlanningTab: React.FC<{
                 [service.id]: newServiceAssignments
             }));
             
-            alert(`Despliegue de IA completado. Se han realizado ${assignmentsMadeCount} nuevas asignaciones.`);
+            if (assignmentsMadeCount > 0) {
+                alert(`Despliegue de IA completado. Se han realizado ${assignmentsMadeCount} nuevas asignaciones.`);
+            } else {
+                alert(`Despliegue de IA completado. No se realizaron nuevas asignaciones ya que todos los alumnos elegibles ya tenían un rol.`);
+            }
 
         } catch (error) {
-            console.error("AI Assignment failed:", error);
+            console.error("Error calling Gemini API:", error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            if (errorMessage.includes("API_KEY")) {
+                 alert("Error de configuración: La clave API de Gemini no está configurada o no es válida.");
+            } else {
+                alert("Hubo un error al contactar con la IA para las asignaciones. Por favor, revise la consola para más detalles.");
+            }
         } finally {
             setIsLoading(null);
         }
