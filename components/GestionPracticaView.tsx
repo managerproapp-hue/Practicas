@@ -267,7 +267,6 @@ const PlanningTab: React.FC<{
     planningAssignments: PlanningAssignments;
     setPlanningAssignments: React.Dispatch<React.SetStateAction<PlanningAssignments>>;
 }> = ({ services, students, studentGroupAssignments, planningAssignments, setPlanningAssignments }) => {
-    const [isLoading, setIsLoading] = useState<string | null>(null); // serviceId of loading service
     const [openExportMenu, setOpenExportMenu] = useState<string | null>(null);
 
     const sortedStudentsForDropdown = useMemo(() => {
@@ -297,98 +296,6 @@ const PlanningTab: React.FC<{
     
             return { ...prev, [serviceId]: serviceAssignments };
         });
-    };
-
-    const handleDeployAI = async (service: Service) => {
-        setIsLoading(service.id);
-        
-        if (!process.env.API_KEY) {
-            console.error("Gemini API key is missing.");
-            alert("Error de configuración: La clave API de Gemini no está configurada. Por favor, configúrala en el entorno de despliegue (Vercel).");
-            setIsLoading(null);
-            return;
-        }
-
-        try {
-            const { GoogleGenAI } = await import('@google/genai');
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-            let newServiceAssignments = { ...(planningAssignments[service.id] || {}) };
-            let assignmentsMadeCount = 0;
-            const serviceGroups = [...new Set([...service.groupAssignments.comedor, ...service.groupAssignments.takeaway])];
-
-            for (const groupName of serviceGroups) {
-                const studentsInGroup = students.filter(s => studentGroupAssignments[s.nre] === groupName);
-                const assignedNREsInGroup = new Set(Object.keys(newServiceAssignments));
-                
-                const studentsToAssign = studentsInGroup
-                    .filter(s => !assignedNREsInGroup.has(s.nre))
-                    .map(s => ({ nre: s.nre, nombre: s.nombre, apellido1: s.apellido1 }));
-
-                if (studentsToAssign.length === 0) continue;
-
-                const assignedRolesInGroup = Object.values(newServiceAssignments).filter(role => {
-                    const assignees = Object.keys(newServiceAssignments).filter(nre => newServiceAssignments[nre] === role);
-                    return studentsInGroup.some(s => assignees.includes(s.nre));
-                });
-                const availableRoles = SECONDARY_ROLES.filter(r => !assignedRolesInGroup.includes(r));
-                
-                const prompt = `You are a kitchen manager's assistant. Your task is to assign secondary cooking roles to a list of students within a specific work group ("partida").
-                Context for Group "${groupName}":
-                - Service Name: ${service.name}
-                - Students to assign: ${JSON.stringify(studentsToAssign)}
-                - Available secondary roles to fill for this group: ${JSON.stringify(availableRoles)}
-                Rules:
-                1. Assign ONE unique role from the available list to each student.
-                2. Do not repeat roles within this group.
-                3. If there are more students than roles, leave some students unassigned.
-                Output the result as a single, valid JSON object where keys are student NREs (as strings) and values are the assigned role (as a string).
-                `;
-
-                console.log("--- Sending prompt to Gemini API for group:", groupName);
-                
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: prompt,
-                    config: {
-                        responseMimeType: 'application/json',
-                    },
-                });
-                
-                const jsonText = response.text;
-                const aiGroupAssignments = JSON.parse(jsonText) as Record<string, string>;
-                console.log("--- Gemini API Response ---", aiGroupAssignments);
-
-                Object.keys(aiGroupAssignments).forEach(nre => {
-                    if(!newServiceAssignments[nre]){ // Double check not to overwrite
-                        newServiceAssignments[nre] = aiGroupAssignments[nre];
-                        assignmentsMadeCount++;
-                    }
-                });
-            }
-
-            setPlanningAssignments(prev => ({
-                ...prev,
-                [service.id]: newServiceAssignments
-            }));
-            
-            if (assignmentsMadeCount > 0) {
-                alert(`Despliegue de IA completado. Se han realizado ${assignmentsMadeCount} nuevas asignaciones.`);
-            } else {
-                alert(`Despliegue de IA completado. No se realizaron nuevas asignaciones ya que todos los alumnos elegibles ya tenían un rol.`);
-            }
-
-        } catch (error) {
-            console.error("Error calling Gemini API:", error);
-            const errorMessage = error instanceof Error ? error.message : "Unknown error";
-            if (errorMessage.includes("API_KEY")) {
-                 alert("Error de configuración: La clave API de Gemini no está configurada o no es válida.");
-            } else {
-                alert("Hubo un error al contactar con la IA para las asignaciones. Por favor, revise la consola para más detalles.");
-            }
-        } finally {
-            setIsLoading(null);
-        }
     };
 
     const handleDownloadPdfPlanning = (service: Service) => {
@@ -516,12 +423,6 @@ const PlanningTab: React.FC<{
                                         </div>
                                     )}
                                 </div>
-                                <button 
-                                    onClick={() => handleDeployAI(service)}
-                                    disabled={isLoading === service.id}
-                                    className="bg-indigo-500 text-white font-semibold py-1.5 px-3 rounded-md hover:bg-indigo-600 disabled:bg-gray-400 text-sm">
-                                    {isLoading === service.id ? "Procesando..." : "Guardar y Desplegar IA"}
-                                </button>
                             </div>
                         </div>
 
