@@ -116,6 +116,8 @@ export interface Service {
 
 export type StudentGroupAssignments = Record<string, string>; // { [studentNre]: groupName }
 
+export type PlanningAssignments = Record<string, Record<string, string>>; // { [serviceId]: { [studentNre]: role } }
+
 
 // --- CREACIÓN DE MENÚS TYPES ---
 

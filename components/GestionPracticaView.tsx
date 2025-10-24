@@ -1,16 +1,22 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Student, ServiceMenu, ServiceDish } from '../types';
+import { Student, ServiceMenu, ServiceDish, Service, StudentGroupAssignments, PlanningAssignments } from '../types';
 import { UsersIcon, GroupIcon, ServiceIcon, CalendarIcon, TrashIcon, CloseIcon, CogIcon, PlusIcon, PencilIcon, CheckIcon, XIcon, DownloadIcon } from './icons';
 import { downloadPdfWithTables, exportToExcel } from './printUtils';
 import { GoogleGenAI } from '@google/genai';
 
 
 // --- GEMINI API SETUP ---
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const geminiApiCall = async (prompt: string): Promise<Record<string, string>> => {
     console.log("--- Sending prompt to Gemini API ---");
     console.log(prompt);
     try {
+        if (!process.env.API_KEY) {
+            console.error("Gemini API key is missing.");
+            alert("Error de configuración: La clave API de Gemini no está configurada. Por favor, configúrala en el entorno de despliegue (Vercel).");
+            throw new Error("API_KEY environment variable not set.");
+        }
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
@@ -27,7 +33,12 @@ const geminiApiCall = async (prompt: string): Promise<Record<string, string>> =>
 
     } catch (error) {
         console.error("Error calling Gemini API:", error);
-        alert("Hubo un error al contactar con la IA para las asignaciones. Por favor, inténtelo de nuevo más tarde.");
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        if (errorMessage.includes("API_KEY")) {
+             alert("Error de configuración: La clave API de Gemini no está configurada. Por favor, configúrala en el entorno de despliegue (Vercel).");
+        } else {
+            alert("Hubo un error al contactar con la IA para las asignaciones. Por favor, inténtelo de nuevo más tarde.");
+        }
         throw new Error("Failed to get assignments from AI.");
     }
 };
@@ -54,20 +65,6 @@ const uuidv4 = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c =
     return v.toString(16);
 });
 
-
-// --- DATA TYPES ---
-interface Service {
-  id: string;
-  name: string;
-  date: string;
-  trimestre: number;
-  groupAssignments: {
-    comedor: string[];
-    takeaway: string[];
-  };
-}
-type StudentGroupAssignments = Record<string, string>; // { [studentNre]: groupName }
-type PlanningAssignments = Record<string, Record<string, string>>; // { [serviceId]: { [studentNre]: role } }
 
 // --- CONSTANTS ---
 const LEADER_ROLES = ["Jefe de Cocina", "2º Jefe de Cocina", "2º Jefe de Takeaway"];
