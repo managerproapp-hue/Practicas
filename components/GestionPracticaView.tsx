@@ -263,232 +263,89 @@ const ServiciosTab: React.FC<{
 const PlanningTab: React.FC<{
     services: Service[];
     students: Student[];
-    studentGroupAssignments: StudentGroupAssignments;
     planningAssignments: PlanningAssignments;
     setPlanningAssignments: React.Dispatch<React.SetStateAction<PlanningAssignments>>;
-}> = ({ services, students, studentGroupAssignments, planningAssignments, setPlanningAssignments }) => {
-    const [openExportMenu, setOpenExportMenu] = useState<string | null>(null);
+}> = ({ services, students, planningAssignments, setPlanningAssignments }) => {
+    
+    const sortedStudents = useMemo(() => [...students].sort((a, b) => 
+        `${a.apellido1} ${a.apellido2} ${a.nombre}`.localeCompare(`${b.apellido1} ${b.apellido2} ${b.nombre}`)), 
+    [students]);
 
-    const sortedStudentsForDropdown = useMemo(() => {
-        return [...students].sort((a, b) => {
-            const nameA = `${a.apellido1} ${a.apellido2} ${a.nombre}`.toLowerCase();
-            const nameB = `${b.apellido1} ${b.apellido2} ${b.nombre}`.toLowerCase();
-            return nameA.localeCompare(nameB);
-        });
-    }, [students]);
+    const sortedServices = useMemo(() => [...services].sort((a, b) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [services]);
 
-    const handlePlanningChange = (serviceId: string, studentNre: string, newRole: string, groupName: string | null) => {
+    const handleRoleChange = (serviceId: string, studentNre: string, newRole: string) => {
         setPlanningAssignments(prev => {
-            const serviceAssignments = { ...(prev[serviceId] || {}) };
+            const newAssignments = JSON.parse(JSON.stringify(prev)); // Deep copy
+            const serviceAssignments = newAssignments[serviceId] || {};
             
-            delete serviceAssignments[studentNre];
-
+            // If the new role is a leader role, check if another student has it and remove it.
             if (LEADER_ROLES.includes(newRole)) {
                 const currentHolderNre = Object.keys(serviceAssignments).find(nre => serviceAssignments[nre] === newRole);
-                if (currentHolderNre) {
+                if (currentHolderNre && currentHolderNre !== studentNre) {
                     delete serviceAssignments[currentHolderNre];
                 }
             }
-    
-            if (newRole !== "Sin asignar") {
+            
+            if (newRole === "Sin asignar") {
+                delete serviceAssignments[studentNre];
+            } else {
                 serviceAssignments[studentNre] = newRole;
             }
+            
+            newAssignments[serviceId] = serviceAssignments;
+            return newAssignments;
+        });
+    };
     
-            return { ...prev, [serviceId]: serviceAssignments };
-        });
-    };
-
-    const handleDownloadPdfPlanning = (service: Service) => {
-        const serviceAssignments = planningAssignments[service.id] || {};
-        const tables = [];
-        const commonColumnStyles = { 0: { cellWidth: 'auto' }, 1: { cellWidth: 60 } };
-
-        // Leaders Table
-        const leadersBody = LEADER_ROLES.map(role => {
-            const studentNre = Object.keys(serviceAssignments).find(nre => serviceAssignments[nre] === role);
-            const student = students.find(s => s.nre === studentNre);
-            return [role, student ? `${student.apellido1} ${student.apellido2}, ${student.nombre}` : 'Sin asignar'];
-        });
-        tables.push({
-            head: [['Líderes del Servicio']],
-            body: leadersBody,
-            columnStyles: commonColumnStyles,
-            options: { headStyles: { fillColor: '#d1fae5', textColor: '#065f46', fontStyle: 'bold' } }
-        });
-
-        // Comedor Section
-        if (service.groupAssignments.comedor.length > 0) {
-            tables.push({ head: [['SERVICIO DE COMEDOR']], body: [], options: { headStyles: { fillColor: '#22c55e', textColor: 'white', fontStyle: 'bold', fontSize: 14 } } });
-            service.groupAssignments.comedor.forEach(groupName => {
-                const studentsInGroup = students.filter(s => studentGroupAssignments[s.nre] === groupName)
-                    .sort((a,b) => `${a.apellido1} ${a.apellido2}`.localeCompare(`${b.apellido1} ${b.apellido2}`));
-                const body = studentsInGroup.map(student => {
-                    const role = serviceAssignments[student.nre] || 'Sin asignar';
-                    return [`${student.apellido1} ${student.apellido2}, ${student.nombre}`, role];
-                });
-                tables.push({
-                    head: [[groupName, 'Rol']],
-                    body: body,
-                    columnStyles: commonColumnStyles,
-                    options: { headStyles: { fillColor: '#f0fdf4', textColor: '#15803d' } }
-                });
-            });
-        }
-        
-        // Takeaway Section
-        if (service.groupAssignments.takeaway.length > 0) {
-            tables.push({ head: [['SERVICIO DE TAKEAWAY']], body: [], options: { headStyles: { fillColor: '#3b82f6', textColor: 'white', fontStyle: 'bold', fontSize: 14 } } });
-             service.groupAssignments.takeaway.forEach(groupName => {
-                const studentsInGroup = students.filter(s => studentGroupAssignments[s.nre] === groupName)
-                    .sort((a,b) => `${a.apellido1} ${a.apellido2}`.localeCompare(`${b.apellido1} ${b.apellido2}`));
-                const body = studentsInGroup.map(student => {
-                    const role = serviceAssignments[student.nre] || 'Sin asignar';
-                    return [`${student.apellido1} ${student.apellido2}, ${student.nombre}`, role];
-                });
-                tables.push({
-                    head: [[groupName, 'Rol']],
-                    body: body,
-                    columnStyles: commonColumnStyles,
-                    options: { headStyles: { fillColor: '#dbeafe', textColor: '#1e40af' } }
-                });
-            });
-        }
-
-        downloadPdfWithTables(
-            `Planning: ${service.name} (${new Date(service.date).toLocaleDateString()})`,
-            `planning_${service.name.replace(/\s+/g, '_')}`,
-            tables,
-            { orientation: 'landscape' }
-        );
-        setOpenExportMenu(null);
-    };
-
-    const handleExportExcelPlanning = (service: Service) => {
-        const serviceAssignments = planningAssignments[service.id] || {};
-        const dataToExport: any[] = [];
-
-        LEADER_ROLES.forEach(role => {
-            const studentNre = Object.keys(serviceAssignments).find(nre => serviceAssignments[nre] === role);
-            const student = students.find(s => s.nre === studentNre);
-            dataToExport.push({
-                'Partida': 'Liderazgo',
-                'Rol': role,
-                'Alumno': student ? `${student.apellido1} ${student.apellido2}, ${student.nombre}` : 'Sin asignar'
-            });
-        });
-
-        const serviceGroups = [...new Set([...service.groupAssignments.comedor, ...service.groupAssignments.takeaway])];
-        serviceGroups.forEach(groupName => {
-            const studentsInGroup = students.filter(s => studentGroupAssignments[s.nre] === groupName);
-            studentsInGroup.forEach(student => {
-                 dataToExport.push({
-                    'Partida': groupName,
-                    'Rol': serviceAssignments[student.nre] || 'Sin asignar',
-                    'Alumno': `${student.apellido1} ${student.apellido2}, ${student.nombre}`
-                });
-            });
-        });
-
-        exportToExcel(dataToExport, `planning_${service.name.replace(/\s+/g, '_')}`, 'Planning');
-        setOpenExportMenu(null);
-    };
-
-    const sortedServices = useMemo(() => services.slice().sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()), [services]);
+    const allRoles = ["Sin asignar", ...LEADER_ROLES, ...SECONDARY_ROLES];
 
     return (
-        <div className="space-y-6">
-            {sortedServices.map(service => {
-                const serviceAssignments = planningAssignments[service.id] || {};
-                const serviceGroups = [...new Set([...service.groupAssignments.comedor, ...service.groupAssignments.takeaway])];
-
-                return (
-                    <div key={service.id} className="bg-white p-4 rounded-lg shadow-md">
-                        <div className="flex justify-between items-start mb-3">
-                            <div>
-                                <h3 className="text-xl font-bold text-gray-800">{service.name}</h3>
-                                <p className="text-sm text-gray-500">{new Date(service.date).toLocaleDateString()}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="relative">
-                                    <button 
-                                        onClick={() => setOpenExportMenu(prev => prev === service.id ? null : service.id)}
-                                        className="bg-green-500 text-white font-semibold py-1.5 px-3 rounded-md hover:bg-green-600 text-sm flex items-center"
-                                    >
-                                        <DownloadIcon className="h-4 w-4 mr-1"/> Exportar
-                                    </button>
-                                    {openExportMenu === service.id && (
-                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border">
-                                            <button onClick={() => handleDownloadPdfPlanning(service)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Descargar PDF</button>
-                                            <button onClick={() => handleExportExcelPlanning(service)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Exportar a Excel</button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Leader Assignments */}
-                        <div className="bg-gray-50 p-3 rounded-md mb-4">
-                            <h4 className="font-semibold text-gray-700 mb-2">Roles de Liderazgo (Servicio Completo)</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                {LEADER_ROLES.map(role => {
-                                    const assignedStudentNre = Object.keys(serviceAssignments).find(nre => serviceAssignments[nre] === role);
+        <div className="bg-white p-4 rounded-lg shadow-md">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Matriz de Planificación de Roles</h3>
+            <div className="overflow-x-auto border border-gray-200 rounded-lg max-h-[75vh]">
+                <table className="min-w-full divide-y divide-gray-200 text-sm border-separate" style={{borderSpacing: 0}}>
+                    <thead className="bg-gray-50 sticky top-0 z-20">
+                        <tr>
+                            <th className="sticky left-0 bg-gray-50 px-3 py-3 text-left font-semibold text-gray-600 z-30 border-b border-r">Alumno</th>
+                            {sortedServices.map(service => (
+                                <th key={service.id} className="px-3 py-3 text-center font-semibold text-gray-600 whitespace-nowrap border-b border-r">
+                                    {service.name} <br />
+                                    <span className="font-normal text-xs">{new Date(service.date).toLocaleDateString()}</span>
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {sortedStudents.map(student => (
+                            <tr key={student.nre} className="hover:bg-gray-50">
+                                <td className="sticky left-0 bg-white hover:bg-gray-50 px-3 py-2 font-medium text-gray-800 whitespace-nowrap z-10 border-b border-r">
+                                    {student.apellido1} {student.apellido2}, {student.nombre}
+                                </td>
+                                {sortedServices.map(service => {
+                                    const currentRole = planningAssignments[service.id]?.[student.nre] || "Sin asignar";
                                     return (
-                                        <div key={role}>
-                                            <label className="text-xs font-medium text-gray-600">{role}</label>
-                                            <select value={assignedStudentNre || "Sin asignar"} onChange={e => handlePlanningChange(service.id, e.target.value, role, null)} className="w-full text-sm p-1.5 border rounded-md bg-white">
-                                                <option value="Sin asignar">Sin asignar</option>
-                                                {sortedStudentsForDropdown.map(s => <option key={s.nre} value={s.nre}>{s.apellido1} {s.apellido2}, {s.nombre}</option>)}
+                                        <td key={service.id} className="px-2 py-1 border-b border-r">
+                                            <select 
+                                                value={currentRole} 
+                                                onChange={e => handleRoleChange(service.id, student.nre, e.target.value)}
+                                                className="w-full p-1.5 border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                            >
+                                                {allRoles.map(role => (
+                                                    <option key={role} value={role}>{role}</option>
+                                                ))}
                                             </select>
-                                        </div>
+                                        </td>
                                     );
                                 })}
-                            </div>
-                        </div>
-
-                        {/* Group/Partida Assignments */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {serviceGroups.map(groupName => {
-                                const studentsInGroup = students
-                                    .filter(s => studentGroupAssignments[s.nre] === groupName)
-                                    .sort((a,b) => `${a.apellido1} ${a.apellido2} ${a.nombre}`.localeCompare(`${b.apellido1} ${b.apellido2} ${b.nombre}`));
-                                
-                                const rolesAssignedInGroup = Object.values(serviceAssignments).filter(role => {
-                                  const assigneeNre = Object.keys(serviceAssignments).find(nre => serviceAssignments[nre] === role);
-                                  return studentsInGroup.some(s => s.nre === assigneeNre);
-                                });
-
-                                return (
-                                    <div key={groupName} className="bg-blue-50 p-3 rounded-md border-l-4 border-blue-400">
-                                        <h5 className="font-bold text-blue-800 mb-2">{groupName}</h5>
-                                        <div className="space-y-2">
-                                            {studentsInGroup.map(student => {
-                                                const currentRole = serviceAssignments[student.nre] || "Sin asignar";
-                                                const availableRoles = SECONDARY_ROLES.filter(r => !rolesAssignedInGroup.includes(r));
-                                                return (
-                                                    <div key={student.nre} className="flex items-center justify-between">
-                                                        <span className="text-sm font-medium text-gray-700 w-2/5 truncate">{student.apellido1} {student.apellido2}, {student.nombre}</span>
-                                                        <select
-                                                            value={currentRole}
-                                                            onChange={e => handlePlanningChange(service.id, student.nre, e.target.value, groupName)}
-                                                            className="w-3/5 text-sm p-1 border rounded-md"
-                                                            disabled={LEADER_ROLES.includes(currentRole)}
-                                                        >
-                                                            <option value="Sin asignar">Sin asignar</option>
-                                                            {currentRole !== "Sin asignar" && !availableRoles.includes(currentRole) && <option value={currentRole}>{currentRole}</option>}
-                                                            {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
-                                                        </select>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                         {serviceGroups.length === 0 && <p className="text-center text-gray-500 italic py-4">No hay grupos asignados a este servicio.</p>}
-                    </div>
-                )
-            })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+             {sortedStudents.length === 0 && <p className="text-center text-gray-500 py-8">No hay alumnos para mostrar.</p>}
+             {sortedServices.length === 0 && <p className="text-center text-gray-500 py-8">No hay servicios configurados. Añádelos en la pestaña 'Configuración'.</p>}
         </div>
     );
 };
@@ -691,7 +548,7 @@ interface GestionPracticaViewProps {
 }
 
 const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({ students }) => {
-  const [activeTab, setActiveTab] = useState<PracticaTab>('Partidas y Grupos');
+  const [activeTab, setActiveTab] = useState<PracticaTab>('Planning');
   
   // State for group management
   const [practicaGroups, setPracticaGroups] = useState<string[]>(() => safeJsonParse('practicaGroups', ["Grupo 1", "Grupo 2", "Grupo 3", "Grupo 4"]));
@@ -835,7 +692,7 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({ students }) =
       case 'Servicios':
         return <ServiciosTab services={services} setServices={setServices} practicaGroups={practicaGroups} planningAssignments={planningAssignments} students={students} onOpenFicha={setFichaService} />;
       case 'Planning':
-        return <PlanningTab services={services} students={students} studentGroupAssignments={studentGroupAssignments} planningAssignments={planningAssignments} setPlanningAssignments={setPlanningAssignments} />;
+        return <PlanningTab services={services} students={students} planningAssignments={planningAssignments} setPlanningAssignments={setPlanningAssignments} />;
       default:
         return null;
     }
